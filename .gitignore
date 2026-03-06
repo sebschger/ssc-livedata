@@ -1,0 +1,15 @@
+# Environment variables
+.env
+.env.local
+*.env
+
+# Python temps and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# System trash
+.DS_Store
+Thumbs.db

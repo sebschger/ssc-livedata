@@ -1,0 +1,8 @@
+dash==4.0.0
+dash_mantine_components==2.6.0
+Flask_Caching==2.3.1
+pandas==3.0.1
+plotly==6.5.2
+python-dotenv==1.2.2
+SQLAlchemy==2.0.48
+PyMySQL
