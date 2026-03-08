@@ -93,7 +93,7 @@ def handle_incoming():
     try:
         data_queue.put(incoming_data)
         logger.debug("Eingehende Daten wurden in die Queue geschrieben")
-    except Exception e:
+    except Exception as e:
         logger.error("Eingehende Daten konnten nicht in die Queue gesetzt werden")
     return "OK", 200
 
