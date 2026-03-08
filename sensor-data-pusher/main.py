@@ -121,7 +121,7 @@ def clean_data(item: dict):
 
 def publish_sql(df_submit: pd.DataFrame):
     try:
-        df_submit.to_sql(DB_TABLE, con=sql_connection, if_exists="append")
+        df_submit.to_sql(DB_TABLE, con=sql_connection, if_exists="append", index=False)
     except Exception as e:
         print(timestamp(), f"Appending the incoming data to the mysql table failed:\n\n{e}")
 
