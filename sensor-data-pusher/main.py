@@ -15,6 +15,7 @@ from sqlalchemy import create_engine
 import os
 import time
 import logging
+import json
 
 
 # Settings
@@ -64,11 +65,15 @@ def interpret_message():
 
     while True:
         item = data_queue.get()
+        logger.debug("Daten aus der Queue entnommen.")
+
         try:
             publish_sql(clean_data(item))
+            
+            logger.info("Daten erfolgreich in SQL geschrieben.")
         except Exception as e:
-            print(timestamp(), "Problem beim Parsen der Daten:\n")
-            print(item)
+            logger.error("Probleme beim Parsen der eingegangenen Daten.")
+            logger.error(e)
         finally:
             data_queue.task_done()
 
@@ -78,15 +83,25 @@ processing_thread = threading.Thread(target=interpret_message, daemon=True)
 
 @bp.route(API_WEBHOOKNAME, methods=["POST"])
 def handle_incoming():
-    print(timestamp(), "Data was received.")
-    data_queue.put(request.get_json())
+    logger.info("Daten per POST-Request erhalten")
+    logger.debug("Erhaltene Daten:")
+
+    incoming_data = request.get_json()
+
+    logger.debug(json.dumps(incoming_data))
+    
+    try:
+        data_queue.put(incoming_data)
+        logger.debug("Eingehende Daten wurden in die Queue geschrieben")
+    except Exception e:
+        logger.error("Eingehende Daten konnten nicht in die Queue gesetzt werden")
     return "OK", 200
 
 
 # Für den Health Check
 @bp.route("/", methods=["GET"])
 def answer_health_check():
-    print(timestamp(), "Probably: Health check received")
+    logger.info("Vermutlich Health-Check empfangen (GET-Request)")
     return "OK", 200
 
 
@@ -134,9 +149,13 @@ def clean_data(item: dict):
 
 def publish_sql(df_submit: pd.DataFrame):
     try:
+        logger.debug("Starte SQL-Insert in die Tabelle")
+        logger.debug("Tabellenspalten:")
+        logger.debug("\n".join(df_submit.columns.tolist()))
         df_submit.to_sql(DB_TABLE, con=sql_connection, if_exists="append", index=False)
     except Exception as e:
-        print(timestamp(), f"Appending the incoming data to the mysql table failed:\n\n{e}")
+        logger.error("Fehler beim Einsetzen der Daten in die SQL-Table")
+        logger.error(e)
 
 
 def main():
@@ -147,7 +166,8 @@ def main():
     try:
         waitress.serve(listener, port=int(API_PORT), host="0.0.0.0")
     except Exception as e:
-        print(timestamp(), f"Problem mit dem Waitress-Prozess (Server):\n{e}")
+        logger.error("Probleme mit dem Server (Waitress-Prozess)")
+        logger.error(e)
     finally:
         # Wir sollten aber warten, bis alle Queue-Objekte abgearbeitet sind
         data_queue.join()
