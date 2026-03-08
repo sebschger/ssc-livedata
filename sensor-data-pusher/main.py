@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 import os
 import time
+import logging
 
 
 # Settings
@@ -33,6 +34,18 @@ DATA_MESSAGE_LIST_NAME = os.getenv("DATA_MESSAGE_LIST_NAME")
 
 def timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%s")
+
+# Logging vorbereiten
+logger = logging.getLogger("sensor-data-pusher")
+logger.setLevel(logging.DEBUG) # todo: später hochsetzen
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+
+logger.addHandler(console_handler)
+
 
 # Globale Variablen
 data_queue = Queue()
