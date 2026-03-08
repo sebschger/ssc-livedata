@@ -31,16 +31,19 @@ DB_HOST = os.getenv("DB_HOST")
 DB_PASS = os.getenv("DB_PASS")
 API_PORT = os.getenv("API_PORT")
 API_WEBHOOKNAME = os.getenv("API_WEBHOOKNAME")
+API_AUTH = os.getenv("API_AUTH")
 DATA_MESSAGE_LIST_NAME = os.getenv("DATA_MESSAGE_LIST_NAME")
+
 
 def timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%s")
 
+
 # Logging vorbereiten
 logger = logging.getLogger("sensor-data-pusher")
-logger.setLevel(logging.DEBUG) # todo: später hochsetzen
+logger.setLevel(logging.DEBUG)  # todo: später hochsetzen
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
@@ -70,7 +73,7 @@ def interpret_message():
 
         try:
             publish_sql(clean_data(item))
-            
+
             logger.info("Daten erfolgreich in SQL geschrieben.")
         except Exception as e:
             logger.error("Probleme beim Parsen der eingegangenen Daten.")
@@ -84,19 +87,32 @@ processing_thread = threading.Thread(target=interpret_message, daemon=True)
 
 @bp.route(API_WEBHOOKNAME, methods=["POST"])
 def handle_incoming():
-    logger.info("Daten per POST-Request erhalten")
-    logger.debug("Erhaltene Daten:")
+    incoming_auth_key = request.headers.get("authorization")
 
-    incoming_data = request.get_json()
+    if (incoming_auth_key) and (incoming_auth_key.lower() == API_AUTH.lower()):
 
-    logger.debug(json.dumps(incoming_data))
-    
-    try:
-        data_queue.put(incoming_data)
-        logger.debug("Eingehende Daten wurden in die Queue geschrieben")
-    except Exception as e:
-        logger.error("Eingehende Daten konnten nicht in die Queue gesetzt werden")
-    return "OK", 200
+        logger.info("Daten per POST-Request erhalten")
+        logger.debug("Erhaltene Daten:")
+
+        incoming_data = request.get_json()
+
+        logger.debug("Erhaltener Header:")
+        logger.debug(request.headers)
+
+        logger.debug(json.dumps(incoming_data))
+
+        try:
+            data_queue.put(incoming_data)
+            logger.debug("Eingehende Daten wurden in die Queue geschrieben")
+        except Exception as e:
+            logger.error("Eingehende Daten konnten nicht in die Queue gesetzt werden")
+        return "OK", 200
+
+    else:
+        logger.warning(
+            f"Post-Request mit falschem Auth-Key: {incoming_auth_key}"
+        )
+        return "Wrong Authorization", 401
 
 
 # Für den Health Check
@@ -165,6 +181,7 @@ def main():
 
     # Wir starten den Server
     try:
+        logger.info(f"Server starting on port {API_PORT}")
         waitress.serve(listener, port=int(API_PORT), host="0.0.0.0")
     except Exception as e:
         logger.error("Probleme mit dem Server (Waitress-Prozess)")
