@@ -15,14 +15,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Alles andere noch ins Docker-Image kopieren
-COPY . .
+COPY *.* .
 
 # Port freigeben
-EXPOSE 8080
+EXPOSE 5001
 
 # Healthcheck initiieren
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8080/dashboard-a/ || exit 1
+  CMD curl -f http://localhost:5001/sensor-data-pusher/ || exit 1
 
 # Programm starten
-CMD ["python", "dashboard_v2.py"]
+CMD ["python", "main.py"]

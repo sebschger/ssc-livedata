@@ -1,6 +1,9 @@
 services:
   dashboard-a:
     build: ./dashboard-a
+
+  sensor-data-pusher:
+    build: ./sensor-data-pusher
   
   nginx:
     image: nginx:alpine
@@ -14,6 +17,8 @@ services:
       - ./certbot/www:/var/www/certbot:ro
     depends_on:
       dashboard-a:
+        condition: service_healthy
+      sensor-data-pusher:
         condition: service_healthy
         
         
