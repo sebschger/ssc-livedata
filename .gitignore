@@ -10,6 +10,9 @@ __pycache__/
 venv/
 .venv/
 
+# Flask Cache
+cache-directory/
+
 # System trash
 .DS_Store
 Thumbs.db
