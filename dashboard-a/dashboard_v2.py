@@ -124,10 +124,10 @@ app.layout = dmc.MantineProvider(
 cache = Cache(
     app.server,
     config={
-        "CACHE_TYPE": "SimpleCache",
+        "CACHE_TYPE": "FileSystemCache",
         "CACHE_DIR": "cache-directory",
         "CACHE_DEFAULT_TIMEOUT": 600,
-        "CACHE_THRESHOLD": 50,
+        "CACHE_THRESHOLD": 10,
     },
 )
 
