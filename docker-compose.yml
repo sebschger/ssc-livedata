@@ -1,22 +1,25 @@
 services:
   dashboard-a:
     build: ./dashboard-a
+    restart: always
     logging:
       driver: "json-file"
       options:
-        max-size: "2m"
-        max-file: "3"
+        max-size: "1m"
+        max-file: "2"
 
   sensor-data-pusher:
     build: ./sensor-data-pusher
+    restart: always
     logging:
       driver: "json-file"
       options:
-        max-size: "2m"
-        max-file: "3"
+        max-size: "1m"
+        max-file: "2"
   
   nginx:
     image: nginx:alpine
+    restart: always
     ports:
       - "80:80"
       - "${NGINX_PUBLIC_PORT:-443}:443"
@@ -34,6 +37,7 @@ services:
         
   certbot:
     image: certbot/certbot:latest
+    restart: always
     volumes:
       - ./certbot/conf:/etc/letsencrypt:rw
       - ./certbot/www:/var/www/certbot:rw
