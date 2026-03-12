@@ -1,7 +1,7 @@
 services:
   dashboard-a:
     build: ./dashboard-a
-    restart: always
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:
@@ -10,7 +10,7 @@ services:
 
   sensor-data-pusher:
     build: ./sensor-data-pusher
-    restart: always
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:
@@ -19,7 +19,7 @@ services:
   
   nginx:
     image: nginx:alpine
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
       - "${NGINX_PUBLIC_PORT:-443}:443"
@@ -37,7 +37,7 @@ services:
         
   certbot:
     image: certbot/certbot:latest
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./certbot/conf:/etc/letsencrypt:rw
       - ./certbot/www:/var/www/certbot:rw
