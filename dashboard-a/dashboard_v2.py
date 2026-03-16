@@ -35,6 +35,30 @@ import numpy as np
 import dash_mantine_components as dmc
 
 
+def berechne_taupunkt(temp_c, rel_hum):
+    """
+    Berechnet den Taupunkt in °C basierend auf der Magnus-Formel.
+
+    :param temp_c: Temperatur in °C
+    :param rel_hum: Relative Luftfeuchtigkeit in % (0-100)
+    :return: Taupunkt in °C
+    """
+    # Konstanten für die Magnus-Formel (Werte für Wasser über 0°C)
+    b = 17.62
+    c = 243.12
+
+    # Sicherheitshalber RH begrenzen, um Logarithmus-Fehler zu vermeiden
+    rel_hum = max(0.01, min(100, rel_hum))
+
+    # Zwischenschritt: Gamma berechnen
+    gamma = np.log(rel_hum / 100.0) + (b * temp_c) / (c + temp_c)
+
+    # Endberechnung
+    taupunkt = (c * gamma) / (b - gamma)
+
+    return round(taupunkt, 2)
+
+
 hovertemplate_temp = """
     <b>Temperatur:</b> %{y}° C<br>
     <b>Datum:</b> %{x|%d.%m.%Y}<br>
@@ -49,6 +73,13 @@ hovertemplate_humi = """
     <extra></extra>
     """
 
+hovertemplate_dew = """
+    <b>Taupunkt:</b> %{y}° C<br>
+    <b>Datum:</b> %{x|%d.%m.%Y}<br>
+    <b>Uhrzeit:</b> %{x|%H:%M:%S} Uhr
+    <extra></extra>
+    """
+
 
 hovertemplate_temp_avg = """
     <b>Temperatur:</b> %{y}° C<br>
@@ -58,6 +89,12 @@ hovertemplate_temp_avg = """
 
 hovertemplate_humi_avg = """
     <b>Luftfeuchtigkeit:</b> %{y} %<br>
+    <b>Uhrzeit:</b> %{x} Uhr
+    <extra></extra>
+    """
+
+hovertemplate_dew_avg = """
+    <b>Taupunkt:</b> %{y}° C<br>
     <b>Uhrzeit:</b> %{x} Uhr
     <extra></extra>
     """
@@ -162,18 +199,28 @@ def update_graphics(*args):
     # 1. Livedaten Temperatur und Luftfeuchtigkeit
     # ==========================================
 
+    df_plot["Taupunkt"] = df_plot.apply(
+        lambda row: berechne_taupunkt(
+            row["uplink_message.decoded_payload.TempC_SHT"],
+            row["uplink_message.decoded_payload.Hum_SHT"],
+        ),
+        axis=1,
+    )
+
     # 1.1 Datenaufbereitung
     df_plot_molten = df_plot.melt(
         id_vars="received_at",
         value_vars=[
             "uplink_message.decoded_payload.Hum_SHT",
             "uplink_message.decoded_payload.TempC_SHT",
+            "Taupunkt",
         ],
     )
     df_plot_molten["variable"] = df_plot_molten["variable"].map(
         {
             "uplink_message.decoded_payload.Hum_SHT": "Luftfeuchtigkeit",
             "uplink_message.decoded_payload.TempC_SHT": "Temperatur",
+            "Taupunkt": "Taupunkt",
         }
     )
 
@@ -187,12 +234,18 @@ def update_graphics(*args):
     fig_px = px.line(df_plot_molten, x="received_at", y="value", color="variable")
 
     # 1.4 Traces übertragen
-    fig.add_trace(fig_px.data[0], secondary_y=False)
-    fig.add_trace(fig_px.data[1], secondary_y=True)
+    fig.add_trace(fig_px.data[0], secondary_y=True)
+    fig.add_trace(fig_px.data[1], secondary_y=False)
+    fig.add_trace(fig_px.data[2], secondary_y=False)
 
     # 1.5 Trace-Farben + Hovertemplates
     fig.update_traces(line_color="blue", hovertemplate=hovertemplate_humi, selector=0)
     fig.update_traces(line_color="orange", hovertemplate=hovertemplate_temp, selector=1)
+    fig.update_traces(
+        visible="legendonly",
+        hovertemplate=hovertemplate_dew,
+        selector=2,
+    )
 
     # 1.6 Achsen und Layout
     fig.update_yaxes(title_text="<b>Temperatur</b> °C", secondary_y=False)
@@ -240,23 +293,43 @@ def update_graphics(*args):
 
     df_weekly.index = pd.to_datetime(df_weekly["received_at"])
     df_weekly = df_weekly.drop(columns=["received_at"])
-    df_weekly_resampled = df_weekly.resample("30min").mean()
 
-    weekdayfilter = df_weekly_resampled.index.dayofweek.map(
+    # Duplikate aggregieren (Durchschnitt)
+    df_weekly = df_weekly.groupby(df_weekly.index).mean()
+
+    new_indices = pd.date_range(
+        start=df_weekly.index.min().floor("h"),
+        end=df_weekly.index.max().ceil("h"),
+        freq="5min",
+    )
+
+    df_weekly = df_weekly.reindex(df_weekly.index.union(new_indices))
+
+    df_weekly_interpolated = df_weekly.interpolate(method="time")
+    df_weekly_interpolated = df_weekly_interpolated.reindex(new_indices)
+    df_weekly_interpolated = df_weekly_interpolated.dropna()
+
+    weekdayfilter = df_weekly_interpolated.index.dayofweek.map(
         lambda x: x in [0, 1, 2, 3, 4, 5, 6]
     )
-    df_mondays = df_weekly_resampled[weekdayfilter].copy()
+    df_daily = df_weekly_interpolated[weekdayfilter].copy()
 
-    df_mondays_averaged = df_mondays.groupby(df_mondays.index.time).mean()
-    df_mondays_averaged.index = df_mondays_averaged.index.rename("index")
+    df_daily_averaged = df_daily.groupby(df_daily.index.time).mean()
+    df_daily_averaged.index = df_daily_averaged.index.rename("index")
 
-    df_mondays_averaged = df_mondays_averaged.rename(
+    df_daily_averaged = df_daily_averaged.rename(
         columns={
             "uplink_message.decoded_payload.TempC_SHT": "Temperatur",
             "uplink_message.decoded_payload.Hum_SHT": "Luftfeuchtigkeit",
         }
     )
-    df_plot_averages = df_mondays_averaged.reset_index().melt(id_vars=["index"])
+
+    df_daily_averaged["Taupunkt"] = df_daily_averaged.apply(
+        lambda row: berechne_taupunkt(row["Temperatur"], row["Luftfeuchtigkeit"]),
+        axis=1,
+    )
+
+    df_plot_averages = df_daily_averaged.reset_index().melt(id_vars=["index"])
 
     # 3.2 Basis-Figur
     fig_average_day = make_subplots(
@@ -270,8 +343,9 @@ def update_graphics(*args):
     )
 
     # 3.4 Traces übertragen
-    fig_average_day.add_trace(fig_average_day_px.data[0], secondary_y=False)
-    fig_average_day.add_trace(fig_average_day_px.data[1], secondary_y=True)
+    fig_average_day.add_trace(fig_average_day_px.data[0], secondary_y=True)
+    fig_average_day.add_trace(fig_average_day_px.data[1], secondary_y=False)
+    fig_average_day.add_trace(fig_average_day_px.data[2], secondary_y=False)
 
     # 3.5 Trace-Farben
     fig_average_day.update_traces(
@@ -279,6 +353,10 @@ def update_graphics(*args):
     )
     fig_average_day.update_traces(
         line_color="orange", hovertemplate=hovertemplate_humi_avg, selector=1
+    )
+
+    fig_average_day.update_traces(
+        visible="legendonly", hovertemplate=hovertemplate_dew_avg, selector=2
     )
 
     # 3.6 Achsen und Layout
