@@ -7,6 +7,8 @@ services:
       options:
         max-size: "1m"
         max-file: "2"
+    networks:
+      - app-net
 
   sensor-data-pusher:
     build: ./sensor-data-pusher
@@ -16,6 +18,8 @@ services:
       options:
         max-size: "1m"
         max-file: "2"
+    networks:
+      - app-net
   
   nginx:
     image: nginx:alpine
@@ -33,6 +37,9 @@ services:
         condition: service_healthy
       sensor-data-pusher:
         condition: service_healthy
+    networks:
+      - app-net
+      - cert-net
         
         
   certbot:
@@ -42,3 +49,12 @@ services:
       - ./certbot/conf:/etc/letsencrypt:rw
       - ./certbot/www:/var/www/certbot:rw
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+        - cert-net
+
+
+networks:
+  app-net:
+    driver: bridge
+  cert-net:
+    driver: bridge
