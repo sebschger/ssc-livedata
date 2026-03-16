@@ -367,6 +367,11 @@ def update_graphics(*args):
     fig_average_day.update_xaxes(title_text=f"Datum und Uhrzeit ({DISPLAY_TIMEZONE})")
     fig_average_day.update_legends()
 
+    fig.update_layout(uirevision='keepzoom')
+    fig_average_day.update_layout(uirevision='keepzoom')
+    fig_motion.update_layout(uirevision='keepzoom')
+
+
     return fig, fig_average_day, fig_motion
 
 
