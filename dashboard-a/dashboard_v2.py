@@ -34,6 +34,8 @@ import numpy as np
 
 import dash_mantine_components as dmc
 
+from waitress import serve
+
 
 def berechne_taupunkt(temp_c, rel_hum):
     """
@@ -179,7 +181,8 @@ def get_data_from_sql():
 
 
 def main():
-    app.run(debug=False, port=8080, host="0.0.0.0")
+    print("Starting waitress server on 8080")
+    serve(app.server, host="0.0.0.0", port=8080)
 
 
 @app.callback(
@@ -367,10 +370,9 @@ def update_graphics(*args):
     fig_average_day.update_xaxes(title_text=f"Datum und Uhrzeit ({DISPLAY_TIMEZONE})")
     fig_average_day.update_legends()
 
-    fig.update_layout(uirevision='keepzoom')
-    fig_average_day.update_layout(uirevision='keepzoom')
-    fig_motion.update_layout(uirevision='keepzoom')
-
+    fig.update_layout(uirevision="keepzoom")
+    fig_average_day.update_layout(uirevision="keepzoom")
+    fig_motion.update_layout(uirevision="keepzoom")
 
     return fig, fig_average_day, fig_motion
 
