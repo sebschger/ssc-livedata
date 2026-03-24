@@ -16,3 +16,6 @@ cache-directory/
 # System trash
 .DS_Store
 Thumbs.db
+
+# Visual Studio Code
+.vscode/
