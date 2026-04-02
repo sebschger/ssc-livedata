@@ -20,6 +20,8 @@ from dash import Dash, Input, Output
 from dash import dcc, html
 from flask_caching import Cache
 
+import logging
+
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -37,6 +39,22 @@ import dash_mantine_components as dmc
 from waitress import serve
 
 
+# Logging vorbereiten
+
+
+logger = logging.getLogger("dashboard-a")
+logger.setLevel(logging.DEBUG)  # todo: später hochsetzen
+
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+
+logger.addHandler(console_handler)
+logger.propagate = False
+
+
+
 def berechne_taupunkt(temp_c, rel_hum):
     """
     Berechnet den Taupunkt in °C basierend auf der Magnus-Formel.
@@ -50,13 +68,16 @@ def berechne_taupunkt(temp_c, rel_hum):
     c = 243.12
 
     # Sicherheitshalber RH begrenzen, um Logarithmus-Fehler zu vermeiden
-    rel_hum = max(0.01, min(100, rel_hum))
+    rel_hum = np.clip(rel_hum, 0.01, 100.0)
 
     # Zwischenschritt: Gamma berechnen
     gamma = np.log(rel_hum / 100.0) + (b * temp_c) / (c + temp_c)
 
     # Endberechnung
     taupunkt = (c * gamma) / (b - gamma)
+
+    logger.debug("Taupunkt berechnet." )
+
 
     return round(taupunkt, 2)
 
@@ -202,10 +223,9 @@ def update_graphics(*args):
     # 1. Livedaten Temperatur und Luftfeuchtigkeit
     # ==========================================
 
-    df_plot["Taupunkt"] = df_plot.apply(
-        lambda row: berechne_taupunkt(
-            row["uplink_message.decoded_payload.TempC_SHT"],
-            row["uplink_message.decoded_payload.Hum_SHT"],
+    df_plot["Taupunkt"] = berechne_taupunkt(
+            df_plot["uplink_message.decoded_payload.TempC_SHT"].values,
+            df_plot["uplink_message.decoded_payload.Hum_SHT"].values,
         ),
         axis=1,
     )
@@ -355,7 +375,7 @@ def update_graphics(*args):
         line_color="blue", hovertemplate=hovertemplate_humi_avg, selector=0
     )
     fig_average_day.update_traces(
-        line_color="orange", hovertemplate=hovertemplate_humi_avg, selector=1
+        line_color="orange", hovertemplate=hovertemplate_temp_avg, selector=1
     )
 
     fig_average_day.update_traces(
