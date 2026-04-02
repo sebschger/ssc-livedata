@@ -1,0 +1,87 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    # Terminal theme code
+  }
+}
+
+invisible_grid: {
+  # Macht die Gruppe unsichtbar
+  style: {
+    stroke: transparent
+    fill: transparent
+  }
+
+  
+  grid-rows: 2
+  grid-columns: 1
+
+
+  # Optional: Titel entfernen (falls nicht ohnehin leer)
+  label: ""
+
+  ttn: TTN-Netzwerk {
+    grid-columns: 3
+    shape: rectangle
+    horizontal-gap: 200
+    gateways: Öffentliche Gateways  {height: 100; width: 300}
+    sensorinstance: Sensor-„Abo“   {height: 100; width: 300}
+    webhook: Webhook\n(externe API)  {height: 100; width: 300}
+  }
+
+
+  vps: IONOS-Server {
+    grid-columns: 3
+
+    horizontal-gap: 200
+    nginx: Reverse-Proxy \n (nginx)   {height: 100; width: 300}
+    receiver: Datenempfänger-API \n (Docker, Python, Flask, Waitress)   {height: 100; width: 300}
+    dashboard: Dashboard-Server \n (Docker, Python, Plotly, Dash, Waitress)  {height: 100; width: 300}
+  }
+
+
+  all-inkl: All-Inkl-Server {
+    grid-columns: 2
+    horizontal-gap: 200
+    mysql: Datenbank\nmit historischen\nMessungen\n(mySQL) {
+      shape: cylinder
+    }
+    webserver: Web Server {
+      blog: Dieser Artikel {      
+        grid-columns: 2
+        iframemap: Interaktive Karte \n als iFrame   {height: 100; width: 300}
+        iframedash: Interaktives Dashboard \n als iFrame  {height: 100; width: 300}
+      }
+    }
+
+  }
+
+
+
+
+  vps.nginx -> vps.receiver: Interne Weiterleitung\ndes Post-Requests
+  vps.dashboard -> all-inkl.webserver.blog.iframedash: Website per HTTPS
+  vps.receiver -> all-inkl.mysql: INSERT
+  all-inkl.mysql -> vps.dashboard: SELECT
+  ttn.sensorinstance -> ttn.webhook: Entschlüsselte\nSensordaten\nintern
+  ttn.webhook -> vps.nginx: HTTPS
+  ttn.gateways -> ttn.sensorinstance: Komprimierte\n und verschlüsselte\nSensordaten\nüber das Internet
+
+
+
+
+}
+
+
+sensor: Sensor
+user: Benutzer {
+  shape: person
+  width: 50
+}
+
+
+
+sensor -> invisible_grid.ttn.gateways: Komprimierte\nund verschlüsselte\nSensordaten \nper Funk (LoRaWAN)
+user -> invisible_grid.all-inkl.webserver.blog: betrachtet {
+  style.stroke-dash: 3
+}
