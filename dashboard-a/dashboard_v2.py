@@ -54,7 +54,6 @@ logger.addHandler(console_handler)
 logger.propagate = False
 
 
-
 def berechne_taupunkt(temp_c, rel_hum):
     """
     Berechnet den Taupunkt in °C basierend auf der Magnus-Formel.
@@ -63,6 +62,9 @@ def berechne_taupunkt(temp_c, rel_hum):
     :param rel_hum: Relative Luftfeuchtigkeit in % (0-100)
     :return: Taupunkt in °C
     """
+
+    logger.debug("Taupunkt berechnet.")
+
     # Konstanten für die Magnus-Formel (Werte für Wasser über 0°C)
     b = 17.62
     c = 243.12
@@ -76,10 +78,7 @@ def berechne_taupunkt(temp_c, rel_hum):
     # Endberechnung
     taupunkt = (c * gamma) / (b - gamma)
 
-    logger.debug("Taupunkt berechnet." )
-
-
-    return round(taupunkt, 2)
+    return np.round(taupunkt, 2)
 
 
 hovertemplate_temp = """
@@ -198,6 +197,7 @@ def get_data_from_sql():
     df["received_at"] = (
         df["received_at"].dt.tz_localize("UTC").dt.tz_convert(DISPLAY_TIMEZONE)
     )
+
     return df
 
 
@@ -224,10 +224,8 @@ def update_graphics(*args):
     # ==========================================
 
     df_plot["Taupunkt"] = berechne_taupunkt(
-            df_plot["uplink_message.decoded_payload.TempC_SHT"].values,
-            df_plot["uplink_message.decoded_payload.Hum_SHT"].values,
-        ),
-        axis=1,
+        df_plot["uplink_message.decoded_payload.TempC_SHT"].values,
+        df_plot["uplink_message.decoded_payload.Hum_SHT"].values,
     )
 
     # 1.1 Datenaufbereitung
