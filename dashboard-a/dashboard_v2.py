@@ -17,7 +17,7 @@
 
 
 from dash import Dash, Input, Output
-from dash import dcc, html
+from dash import dcc, html, no_update
 from flask_caching import Cache
 
 import logging
@@ -161,6 +161,19 @@ app.layout = dmc.MantineProvider(
     children=[
         dmc.Container(
             [
+                dmc.Modal(
+                    title="Automatic timeout",
+                    id="modal-timeout",
+                    closeOnClickOutside=False,
+                    withCloseButton=False,
+                    opened=False,
+                    children=[
+                        dmc.Text("The website has stayed open very long already."),
+                        dmc.Text("Are you still there?"),
+                        dmc.Space(h=20),
+                        dmc.Group([dmc.Button("Yes!", id="modal-still-there")]),
+                    ],
+                ),
                 dmc.Title("Live Sensor Data – LoRaWAN remote sensing", order=1),
                 html.Br(),
                 dmc.Title("Hygrothermische Messung", order=2),
@@ -345,9 +358,8 @@ def update_graphics(*args):
         }
     )
 
-    df_daily_averaged["Taupunkt"] = df_daily_averaged.apply(
-        lambda row: berechne_taupunkt(row["Temperatur"], row["Luftfeuchtigkeit"]),
-        axis=1,
+    df_daily_averaged["Taupunkt"] = berechne_taupunkt(
+        df_daily_averaged["Temperatur"], df_daily_averaged["Luftfeuchtigkeit"]
     )
 
     df_plot_averages = df_daily_averaged.reset_index().melt(id_vars=["index"])
@@ -393,6 +405,35 @@ def update_graphics(*args):
     fig_motion.update_layout(uirevision="keepzoom")
 
     return fig, fig_average_day, fig_motion
+
+
+@app.callback(
+    [
+        Output("refresh_interval", "n_intervals"),
+        Output("refresh_interval", "disabled"),
+        Output("modal-timeout", "opened"),
+    ],
+    Input("modal-still-there", "n_clicks"),
+    prevent_initial_call=True,
+)
+def close_timeout(*args):
+    logger.info("Manually reactivated by user (after timeout).")
+    return 0, False, False
+
+
+@app.callback(
+    [
+        Output("refresh_interval", "disabled", allow_duplicate=True),
+        Output("modal-timeout", "opened", allow_duplicate=True),
+    ],
+    Input("refresh_interval", "n_intervals"),
+    prevent_initial_call=True,
+)
+def check_for_timeout(n_intervals):
+    if n_intervals >= 60:
+        logger.info("Timeout reached.")
+        return True, True
+    return no_update
 
 
 if __name__ == "__main__":
